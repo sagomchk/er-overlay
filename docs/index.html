@@ -23,6 +23,8 @@ h2{display:flex;align-items:center;gap:8px;font-size:15px;margin:0 0 12px}
 .col{display:flex;flex-direction:column;gap:16px;min-width:0}
 .col.side{position:sticky;top:20px}
 .hint{font-size:12px;font-weight:400;color:var(--muted);margin-left:auto}
+.hbtns{display:flex;gap:6px;margin-left:auto}
+button.mini{height:28px;padding:0 10px;border-radius:8px;font-size:12px;font-weight:600}
 #prev{margin-top:0;min-height:320px;display:flex;align-items:center;justify-content:center}
 .notes{margin:0;padding-left:18px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:8px}
 @media (max-width:960px){main{padding:20px 16px 40px}.layout{grid-template-columns:1fr}.col.side{position:static}}
@@ -102,7 +104,7 @@ select:disabled{opacity:.5}
       <div id="status" role="status"></div>
     </section>
     <section class="panel">
-      <h2><span class="step">2</span>표시할 정보</h2>
+      <h2><span class="step">2</span>표시할 정보<span class="hbtns"><button id="allOn" type="button" class="mini">모두 선택</button><button id="allOff" type="button" class="mini">모두 해제</button></span></h2>
       <div class="opts" id="opts"></div>
       <label for="pos">최근 순위 표시 위치</label>
       <select id="pos"><option value="h">오른쪽</option><option value="v">아래</option></select>
@@ -359,6 +361,10 @@ select:disabled{opacity:.5}
     if(lastV)draw(lastV);
   }
   $("#opts").addEventListener("change",readOpts);
+  /* 표시할 정보 모두 선택 / 모두 해제 */
+  function setAllOpts(v){OPTS.forEach(function(o){$("#o_"+o[0]).checked=v});readOpts()}
+  $("#allOn").addEventListener("click",function(){setAllOpts(true)});
+  $("#allOff").addEventListener("click",function(){setAllOpts(false)});
   $("#pos").addEventListener("change",readOpts);
   function selected(){return OPTS.map(function(o){return o[0]}).filter(function(k){return on[k]})}
 
