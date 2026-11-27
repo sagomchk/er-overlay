@@ -1,0 +1,14 @@
+# API 키와 계정 정보가 들어 있는 파일은 절대 올리지 않아요
+api key*.txt
+*.key
+.dev.vars
+랭크 기록 예시*.txt
+
+# 로컬 전용 파일 (API 키를 직접 넣어 쓰는 버전, 백업)
+이터널 리턴 랭크 오버레이.html
+*.bak
+er_api_tester.*
+
+# Worker 개발 도구가 만드는 파일
+node_modules/
+.wrangler/

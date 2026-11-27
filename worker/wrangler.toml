@@ -1,0 +1,13 @@
+name = "er-overlay-proxy"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+# GitHub Pages 주소가 정해지면 여기에 넣어요 (끝에 / 없이, 쉼표로 여러 개)
+# 예: "https://아이디.github.io,http://localhost:8080"
+ALLOWED_ORIGINS = "https://sagomchk.github.io,http://localhost:8080"
+# 본인 닉네임만 허용하려면 적어요. 비워 두면 모든 닉네임 허용
+ALLOWED_NICKS = ""
+
+# API 키는 여기에 적지 말고 아래 명령으로 등록해요:
+#   npx wrangler secret put ER_API_KEY
