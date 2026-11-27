@@ -8,6 +8,12 @@ OBS / 브라우저 ──▶ GitHub Pages (docs/index.html, API 키 없음)
                  ER Open API (open-api.bser.io)
 ```
 
+## 현재 주소
+
+- 오버레이 홈페이지: https://er-overlay.sagomchk.kr/ (예전 https://sagomchk.github.io/er-overlay/ 는 자동으로 새 주소로 이동)
+- Worker: https://er-overlay-proxy.sagomchk.workers.dev
+- 도메인: 호스팅케이알 DNS에 `er-overlay` CNAME → `sagomchk.github.io`, GitHub Pages 사용자 도메인 + HTTPS 강제 (docs/CNAME)
+
 ## 1. Cloudflare Worker
 
 ```powershell
