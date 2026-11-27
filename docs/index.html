@@ -112,7 +112,7 @@ select:disabled{opacity:.5}
   var P=new URLSearchParams(location.search);
   var overlayMode=!!(P.get("demo")||P.get("nick"));
   var on={},layout="h",curNick="",lastV=null;
-  function fresh(n){return {nick:n,uid:null,season:null,newest:null,mmr:null,rank:null,recent:[],daily:0,dayKey:"",end:null,cut:null,dcut:null,cutAt:0,head:null,ranked:null}}
+  function fresh(n){return {nick:n,name:null,uid:null,season:null,newest:null,mmr:null,rank:null,recent:[],daily:0,dayKey:"",end:null,cut:null,dcut:null,cutAt:0,head:null,ranked:null}}
   var MAXP=5; /* 최근 랭크 경기를 찾을 때 더 불러올 경기 목록 페이지 수 (1페이지 = 10판) */
   var st=fresh(null);
 
@@ -162,6 +162,7 @@ select:disabled{opacity:.5}
   /* 오버레이 HTML (v: 데이터, on: 표시 항목, layout: 최근 순위 위치) */
   function ovHtml(v){
     if(v.err)return '<div class="ov"><span class="msg">'+esc(v.err)+'</span></div>';
+    if(v.wait)return '<div class="ov"><span class="empty">'+esc(v.wait)+'</span></div>';
     var nod=v.mmr===null||v.mmr===undefined;
     var t=nod?{n:"기록 없음",c:"#9aa4bd",k:"nodata"}:tierOf(v.mmr,v.rank);
     var em=on.icon&&IMGS[t.k]?'<div class="em"><img src="'+IMGS[t.k]+'" alt="'+esc(t.n)+'"></div>':'';
@@ -191,7 +192,8 @@ select:disabled{opacity:.5}
   function draw(v){
     lastV=v;
     var w={};for(var k in v)w[k]=v[k];
-    w.nick=curNick;
+    /* 닉네임은 조회 결과(API가 돌려준 닉네임)를 쓰고, 없을 때만 링크의 닉네임을 써요 */
+    w.nick=v.name!==undefined&&v.name!==null?v.name:curNick;
     var h=ovHtml(w);$("#prev").innerHTML=h;$("#live").innerHTML=h;
   }
   function setStatus(t,e){var s=$("#status");s.textContent=t||"";s.className=e?"err":""}
@@ -283,7 +285,7 @@ select:disabled{opacity:.5}
         var u=await call("/v1/user/nickname?query="+encodeURIComponent(nick),key);
         var us=u.user,uid=us&&us.userId; /* 문서: user.userId (임시 ID, 닉네임 변경 시 초기화) */
         if(!uid)throw {kind:"notfound"};
-        st.uid=uid;
+        st.uid=uid;st.name=us.nickname||nick;
       }
       var gp="/v1/user/games/uid/"+encodeURIComponent(st.uid);
       var g=await call(gp,key);
@@ -324,7 +326,7 @@ select:disabled{opacity:.5}
       }
       st.newest=newest;
       st.recent=st.ranked.slice(0,count).map(function(x){return x.gameRank});
-      return {mmr:st.mmr,rank:st.rank,recent:st.recent,daily:st.daily,cut:st.cut,dcut:st.dcut,end:st.end};
+      return {name:st.name,mmr:st.mmr,rank:st.rank,recent:st.recent,daily:st.daily,cut:st.cut,dcut:st.dcut,end:st.end};
     }catch(e){
       if(e&&e.kind==="notfound"&&st.uid&&!retry){st.uid=null;return fetchData(nick,key,count,need,true)}
       throw e;
@@ -335,18 +337,20 @@ select:disabled{opacity:.5}
   async function run(nick,key,count,quiet,need){
     if(busy)return;busy=true;
     if(!quiet)setStatus("조회 중이에요…");
+    var ok=false;
     try{
       var v=await fetchData(nick,key,count,need);
-      draw(v);had=true;
+      draw(v);had=true;ok=true;
       setStatus("마지막 갱신 "+new Date().toLocaleTimeString("ko-KR"));
     }catch(e){
       var m=errText(e);setStatus(m,true);
       if(!had)draw({err:m});
     }
     busy=false;
+    return ok;
   }
   function demo(cnt){
-    return {mmr:6850,rank:1123,recent:[1,3,2,7,1,4,2,5,6,2].slice(0,cnt),daily:125,cut:7337,dcut:6903,end:Date.now()+12*864e5+3*36e5+27e3};
+    return {name:"예시닉네임",mmr:6850,rank:1123,recent:[1,3,2,7,1,4,2,5,6,2].slice(0,cnt),daily:125,cut:7337,dcut:6903,end:Date.now()+12*864e5+3*36e5+27e3};
   }
   var ALL={};OPTS.forEach(function(o){ALL[o[0]]=true});
 
@@ -359,7 +363,7 @@ select:disabled{opacity:.5}
     curNick=P.get("nick")||"";
     $("#setup").classList.add("hide");$("#live").classList.remove("hide");
     var cnt=Number(P.get("count"))||10;
-    if(P.get("demo")){if(!curNick)curNick="예시닉네임";draw(demo(cnt))}
+    if(P.get("demo")){var dv=demo(cnt);if(curNick)dv.name=curNick;draw(dv)}
     else{
       var go=function(q){run(P.get("nick"),null,cnt,q,on)};
       go(true);setInterval(function(){go(true)},60000);
@@ -382,20 +386,29 @@ select:disabled{opacity:.5}
   $("#pos").addEventListener("change",readOpts);
   function selected(){return OPTS.map(function(o){return o[0]}).filter(function(k){return on[k]})}
 
+  /* 미리보기는 조회해서 받아온 데이터로만 그려요. 마지막으로 조회에 성공한 닉네임을 기억해 두고,
+     OBS 링크도 그 닉네임으로 만들어요. */
+  var queried=null; /* {input: 입력한 닉네임, name: API가 돌려준 닉네임} */
   $("#go").addEventListener("click",function(){
     var nick=$("#nick").value.trim();
     if(!nick){setStatus("닉네임을 입력해 주세요.",true);return}
-    curNick=nick;var b=$("#go");b.disabled=true;had=false;
-    run(nick,null,Number($("#count").value),false,ALL).then(function(){b.disabled=false});
+    curNick="";queried=null;$("#link").value="";
+    var b=$("#go");b.disabled=true;had=false;
+    draw({wait:"조회 중이에요…"});
+    run(nick,null,Number($("#count").value),false,ALL).then(function(ok){
+      b.disabled=false;
+      if(ok)queried={input:nick,name:(lastV&&lastV.name)||nick};
+    });
   });
   $("#demo").addEventListener("click",function(){
-    curNick=$("#nick").value.trim()||"예시닉네임";
+    queried=null;$("#link").value="";
     draw(demo(Number($("#count").value)));
-    setStatus("예시 데이터예요.");
+    setStatus("예시 데이터예요. OBS 링크는 닉네임을 조회한 뒤에 만들 수 있어요.");
   });
   $("#mk").addEventListener("click",function(){
-    var nick=$("#nick").value.trim();
-    if(!nick){setStatus("닉네임을 먼저 입력해 주세요.",true);return}
+    if(!queried){setStatus("먼저 닉네임을 조회해 주세요. 조회한 결과로 링크를 만들어요.",true);return}
+    if($("#nick").value.trim()!==queried.input){setStatus("닉네임이 바뀌었어요. 다시 조회한 뒤에 링크를 만들어 주세요.",true);return}
+    var nick=queried.name;
     /* 현재 페이지 주소에서 ?·# 뒤를 뗀 것을 기준으로 해요.
        location.origin은 파일로 열면 "null"이 돼서 쓰지 않아요 (file:///C:/... 주소가 그대로 유지돼요). */
     var proto=location.protocol;
@@ -413,10 +426,15 @@ select:disabled{opacity:.5}
     var t=$("#link");if(!t.value)return;t.select();
     try{navigator.clipboard.writeText(t.value);setStatus("복사했어요.")}catch(e){document.execCommand&&document.execCommand("copy");setStatus("복사했어요.")}
   });
-  $("#nick").addEventListener("input",function(){curNick=$("#nick").value.trim()||"예시닉네임";if(lastV)draw(lastV)});
+  /* 닉네임을 입력하는 것만으로는 미리보기가 바뀌지 않아요 */
+  $("#nick").addEventListener("input",function(){
+    if(queried&&$("#nick").value.trim()!==queried.input){$("#link").value="";setStatus("닉네임이 바뀌었어요. 조회를 눌러야 미리보기에 반영돼요.")}
+  });
+  $("#count").addEventListener("change",function(){
+    if(queried)setStatus("최근 판수를 바꿨어요. 다시 조회하면 미리보기에 반영돼요.");
+  });
   readOpts();
-  curNick="예시닉네임";
-  draw(demo(10));
+  draw({wait:"닉네임을 조회하면 여기에 미리보기가 나와요."});
 })();
 </script>
 </body>
