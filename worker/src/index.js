@@ -93,8 +93,8 @@ async function upstream(path, env, ctx, ttl) {
 function isRanked(x) { return x.matchingMode === undefined || Number(x.matchingMode) === 3; }
 /* "2026-11-11T20:55:45.045+0900" 같은 형식을 시각(ms)으로 */
 function parseDtm(s) { return s ? Date.parse(String(s).replace(/([+-]\d\d)(\d\d)$/, "$1:$2")) : NaN; }
-/* 시즌 종료 "2027-02-18 09:00:00"은 한국 시간으로 봐요 */
-function parseEnd(s) {
+/* 시즌 시작·종료 "2027-02-18 09:00:00"은 한국 시간으로 봐요 */
+function parseKst(s) {
   if (!s) return null;
   const m = /^(\d{4}-\d\d-\d\d)[ T](\d\d:\d\d(:\d\d)?)$/.exec(String(s).trim());
   const t = m ? Date.parse(m[1] + "T" + m[2] + (m[3] ? "" : ":00") + "+09:00") : Date.parse(s);
@@ -169,7 +169,8 @@ async function buildOverlay(nick, count, env, ctx, freshNickname) {
     daily,
     cut: cutAt(tp.topRanks, ETERNITY),
     dcut: cutAt(tp.topRanks, DEMIGOD),
-    end: parseEnd(cur.seasonEnd),
+    start: parseKst(cur.seasonStart),
+    end: parseKst(cur.seasonEnd),
     updated: Date.now(),
   };
 }
@@ -185,7 +186,7 @@ async function handleOverlay(url, env, ctx, origin) {
 
   // 같은 닉네임·판수의 결과는 잠시 재사용해요
   const cache = cacheStore();
-  const ckey = new Request("https://overlay.cache/v1?nick=" + encodeURIComponent(nick) + "&count=" + count);
+  const ckey = new Request("https://overlay.cache/v2?nick=" + encodeURIComponent(nick) + "&count=" + count);
   if (cache) {
     const hit = await cache.match(ckey);
     if (hit) return withCors(hit, origin, "HIT");
